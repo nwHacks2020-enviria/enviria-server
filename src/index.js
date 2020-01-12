@@ -13,13 +13,13 @@ var GreenScore = require('./greenscore');
 
 const app = express()
 
-var mongoose = require('mongoose')
-mongoose.connect('mongodb://localhost/enviriadb', {useNewUrlParser: true, useUnifiedTopology: true })
-var db = mongoose.connection
-db.on('error', console.error.bind(console, 'connection error:'))
-db.once('open', function() {
-  console.log('Database Connection Established.')
-})
+// var mongoose = require('mongoose')
+// mongoose.connect('mongodb://localhost/enviriadb', {useNewUrlParser: true, useUnifiedTopology: true })
+// var db = mongoose.connection
+// db.on('error', console.error.bind(console, 'connection error:'))
+// db.once('open', function() {
+//   console.log('Database Connection Established.')
+// })
 
 app.use(helmet())
 
@@ -44,9 +44,9 @@ const addUpdateAuthToken = async (username, token) => {
     })
 }
 
-// app.get('/', (req, res) => {
-//     res.send('Hello')
-// })
+app.get('/', (req, res) => {
+    res.send('Hello')
+})
 
 app.post('/register', async (req, res) => {
     try {
@@ -391,7 +391,7 @@ app.post('/api/greenscoreAggregation', async function (req, res) {
     }
 })
 
-app.get('/api/greenscoreByDay', async function(req, res) {
+app.post('/api/greenscoreByDay', async function(req, res) {
     var token = req.query.token
     var user_id = await getUserIDFromToken(token)
     var fromTime = new Date(req.body.fromTime)

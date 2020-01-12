@@ -1,0 +1,8 @@
+{
+    "appService.zipIgnorePattern": [
+        "node_modules{,/**}",
+        ".vscode{,/**}"
+    ],
+    "appService.defaultWebAppToDeploy": "/subscriptions/7bb49a05-f271-4149-933d-a9ef110dbc54/resourceGroups/enviriag/providers/Microsoft.Web/sites/EnviriaAPI",
+    "appService.deploySubpath": ""
+}
