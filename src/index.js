@@ -3,22 +3,22 @@ const bodyParser = require('body-parser')
 const cors = require('cors')
 const helmet = require('helmet')
 const morgan = require('morgan')
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcryptjs')
 const moment = require('moment')
 const crypto = require('crypto')
 
-var User = require('./user');
+var User = require('./user')
 var Token = require('./token')
 
-const app = express();
+const app = express()
 
-var mongoose = require('mongoose');
-mongoose.connect('mongodb://localhost/enviriadb', {useNewUrlParser: true, useUnifiedTopology: true });
-var db = mongoose.connection;
-db.on('error', console.error.bind(console, 'connection error:'));
+var mongoose = require('mongoose')
+mongoose.connect('mongodb://localhost/enviriadb', {useNewUrlParser: true, useUnifiedTopology: true })
+var db = mongoose.connection
+db.on('error', console.error.bind(console, 'connection error:'))
 db.once('open', function() {
-  console.log('Database Connection Established.');
-});
+  console.log('Database Connection Established.')
+})
 
 app.use(helmet())
 
@@ -29,8 +29,8 @@ app.use(cors())
 app.use(morgan('combined'))
 
 const addAuthToken = async (username, token) => {
-    var newToken = new Token({username, token, expiry: moment.utc().add(1, "M").toDate() });
-    var result = await newToken.save();
+    var newToken = new Token({username, token, expiry: moment.utc().add(1, "M").toDate() })
+    var result = await newToken.save()
     console.log('Token added: ', result)
     console.log('Token value: ', newToken.token)
 }
@@ -40,7 +40,7 @@ const addAuthToken = async (username, token) => {
 // })
 
 app.post("/authenticate", async (req, res) => {
-    console.log("authenticating...");
+    console.log("authenticating...")
     if (req.body.password == undefined) {
         res.send({ code: 301, message: "Please send password in body" })
     }
@@ -50,36 +50,36 @@ app.post("/authenticate", async (req, res) => {
             try {
                 result = await bcrypt.compare(req.body.password, hashed_password)
                 if (result) {
-                    console.log("authenticated!");
-                    let newAuthToken = crypto.randomBytes(64).toString('hex');
-                    addAuthToken(req.body.username, newAuthToken);
+                    console.log("authenticated!")
+                    let newAuthToken = crypto.randomBytes(64).toString('hex')
+                    addAuthToken(req.body.username, newAuthToken)
                     res.send({
                         token: newAuthToken
                     })
                 } else {
-                    console.log("authentication failed.");
-                    res.send({ code: 301, message: "Not Authorized" });
+                    console.log("authentication failed.")
+                    res.send({ code: 301, message: "Not Authorized" })
                 }
             } catch (error) {
                 console.log(error)
             }
         }
     })
-});
+})
 
 app.post('/register', async (req, res) => {
     try {
-        req.body.password = bcrypt.hashSync(req.body.password, 10);
-        var user = new User(req.body);
-        var result = await user.save();
-        res.send(result);
+        req.body.password = bcrypt.hashSync(req.body.password, 10)
+        var user = new User(req.body)
+        var result = await user.save()
+        res.send(result)
     } catch (error) {
-        res.status(500).send(error);
+        res.status(500).send(error)
     }
-});
+})
 
 app.use(function(req, res, next){
-    console.log("Secure resource " + Date.now());
+    console.log("Secure resource " + Date.now())
 
     if (req.body.token == undefined) {
         res.send({
