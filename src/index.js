@@ -166,19 +166,35 @@ async function getUserIDFromToken(token){
     return user_id
 }
 
+actionScores = {
+    "biking": 300,
+    "driving": -600,
+    "transit": 150,
+    "recycling": 150,
+    "composting": 250
+}
+
 app.post('/api/greenscore', async function (req, res) {
     var token = req.body.token
     var user_id = await getUserIDFromToken(token)
+    var score = 0
+
+    if (actionScores[req.body.action] == undefined){
+        res.send({ code: 301, message: "action not found" })
+        return
+    }
+
     var greenscore = new GreenScore ({
         user_id: user_id,
-        score: req.body.score,
+        action: req.body.action,
+        score: actionScores[req.body.action],
         additionalData: {}
     });
 
     var result = await greenscore.save();
     User.findOne({_id: user_id}, async function(err, user){   
         if(user){
-            user.total_greenscore += req.body.score
+            user.total_greenscore += greenscore.score
             if (user.total_greenscore > 10000)
                 user.total_greenscore = 10000;
             else if (user.total_greenscore < 0)
