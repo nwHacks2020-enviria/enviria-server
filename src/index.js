@@ -13,13 +13,13 @@ var GreenScore = require('./greenscore');
 
 const app = express()
 
-// var mongoose = require('mongoose')
-// mongoose.connect('mongodb://localhost/enviriadb', {useNewUrlParser: true, useUnifiedTopology: true })
-// var db = mongoose.connection
-// db.on('error', console.error.bind(console, 'connection error:'))
-// db.once('open', function() {
-//   console.log('Database Connection Established.')
-// })
+var mongoose = require('mongoose')
+mongoose.connect('mongodb://localhost/enviriadb', {useNewUrlParser: true, useUnifiedTopology: true })
+var db = mongoose.connection
+db.on('error', console.error.bind(console, 'connection error:'))
+db.once('open', function() {
+  console.log('Database Connection Established.')
+})
 
 app.use(helmet())
 
