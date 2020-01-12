@@ -148,14 +148,17 @@ app.post('/authenticateUsingToken', async (req, res) => {
 var GreenScore = require('./greenscore');
 
 async function getUserIDFromToken(token){
+    var username = null;
     var user_id = null;
     try {
         await Token.findOne({token: token}, async function (err, db_token) {
             if (db_token.username) {
-                await User.findOne({username: db_token.username}, function (err, user) {
-                    user_id = user._id
-                })
+                username = db_token.username
             }
+        })
+        await User.findOne({username: username}, function (err, user) {
+            user_id = user._id
+            console.log('first uid', user_id)
         })
     } catch (err) {
         console.error(err)
@@ -176,7 +179,7 @@ app.post('/api/greenscore', async function (req, res) {
 
     var result = await greenscore.save();
     User.findOne({_id: user_id}, async function(err, user){   
-        console.log(user)         
+        console.log(user)
         if(user){
             user.total_greenscore += req.body.score
             if (user.total_greenscore > 10000)
