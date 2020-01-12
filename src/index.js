@@ -28,11 +28,19 @@ app.use(cors())
 
 app.use(morgan('combined'))
 
-const addAuthToken = async (username, token) => {
-    var newToken = new Token({username, token, expiry: moment.utc().add(1, "M").toDate() })
-    var result = await newToken.save()
-    console.log('Token added: ', result)
-    console.log('Token value: ', newToken.token)
+const addUpdateAuthToken = async (username, token) => {
+    await Token.findOne({username: username}, async function(err, oldToken){
+        if (oldToken){
+            oldToken.token = token
+            oldToken.save()
+            console.log('Token value updated: ', oldToken.token)
+        } else {
+            var newToken = new Token({username, token, expiry: moment.utc().add(1, "M").toDate() })
+            var result = await newToken.save()
+            console.log('Token added: ', result)
+            console.log('Token value: ', newToken.token)
+        }
+    })
 }
 
 // app.get('/', (req, res) => {
@@ -52,7 +60,7 @@ app.post("/authenticate", async (req, res) => {
                 if (result) {
                     console.log("authenticated!")
                     let newAuthToken = crypto.randomBytes(64).toString('hex')
-                    addAuthToken(req.body.username, newAuthToken)
+                    addUpdateAuthToken(req.body.username, newAuthToken)
                     res.send({
                         token: newAuthToken
                     })
@@ -121,7 +129,7 @@ app.post('/authenticateUsingToken', async (req, res) => {
                     let username = await Token.findOne({ token: req.body.token }).username
                     await Token.deleteOne({ token: req.body.token })
                     let newAuthToken = crypto.randomBytes(64).toString('hex')
-                    addAuthToken(username, newAuthToken)
+                    addUpdateAuthToken(username, newAuthToken)
                     res.send({
                         code: 200,
                         data: {
