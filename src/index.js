@@ -158,7 +158,6 @@ async function getUserIDFromToken(token){
         })
         await User.findOne({username: username}, function (err, user) {
             user_id = user._id
-            console.log('first uid', user_id)
         })
     } catch (err) {
         console.error(err)
@@ -170,7 +169,6 @@ async function getUserIDFromToken(token){
 app.post('/api/greenscore', async function (req, res) {
     var token = req.body.token
     var user_id = await getUserIDFromToken(token)
-    console.log(user_id)
     var greenscore = new GreenScore ({
         user_id: user_id,
         score: req.body.score,
@@ -179,7 +177,6 @@ app.post('/api/greenscore', async function (req, res) {
 
     var result = await greenscore.save();
     User.findOne({_id: user_id}, async function(err, user){   
-        console.log(user)
         if(user){
             user.total_greenscore += req.body.score
             if (user.total_greenscore > 10000)
@@ -187,7 +184,7 @@ app.post('/api/greenscore', async function (req, res) {
             else if (user.total_greenscore < 0)
                 user.total_greenscore = 0;
             
-            console.log(user.total_greenscore)
+            console.log(user.username + '\'s current greenscore:', user.total_greenscore)
             await user.save();
         }else{
             console.log(err);
