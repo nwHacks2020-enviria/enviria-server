@@ -145,6 +145,54 @@ app.post('/authenticateUsingToken', async (req, res) => {
     }
 })
 
+var GreenScore = require('./greenscore');
+
+async function getUserIDFromToken(token){
+    var user_id = null;
+    try {
+        await Token.findOne({token: token}, async function (err, db_token) {
+            if (db_token.username) {
+                await User.findOne({username: db_token.username}, function (err, user) {
+                    user_id = user._id
+                })
+            }
+        })
+    } catch (err) {
+        console.error(err)
+    }
+
+    return user_id
+}
+
+app.post('/api/greenscore', async function (req, res) {
+    var token = req.body.token
+    var user_id = await getUserIDFromToken(token)
+    console.log(user_id)
+    var greenscore = new GreenScore ({
+        user_id: user_id,
+        score: req.body.score,
+        additionalData: {}
+    });
+
+    var result = await greenscore.save();
+    User.findOne({_id: user_id}, async function(err, user){   
+        console.log(user)         
+        if(user){
+            user.total_greenscore += req.body.score
+            if (user.total_greenscore > 10000)
+                user.total_greenscore = 10000;
+            else if (user.total_greenscore < 0)
+                user.total_greenscore = 0;
+            
+            console.log(user.total_greenscore)
+            await user.save();
+        }else{
+            console.log(err);
+        }
+    });
+    res.send(result);
+})
+
 app.listen(3000, () => {
     console.log('Server port 3000 opened')
 })
