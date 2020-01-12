@@ -9,6 +9,7 @@ const crypto = require('crypto')
 
 var User = require('./user')
 var Token = require('./token')
+var GreenScore = require('./greenscore');
 
 const app = express()
 
@@ -47,10 +48,30 @@ const addUpdateAuthToken = async (username, token) => {
 //     res.send('Hello')
 // })
 
+app.post('/register', async (req, res) => {
+    try {
+        req.body.password = bcrypt.hashSync(req.body.password, 10)
+        var user = new User(req.body)
+        var result = await user.save()
+        res.send({
+            code: 200,
+            data: {
+                username: result.username,
+                email: result.email,
+                friends: result.friends,
+                total_greenscore: result.total_greenscore
+            }
+        })
+    } catch (error) {
+        res.status(500).send(error)
+    }
+
+})
+
 app.post("/authenticate", async (req, res) => {
     console.log("authenticating...")
     if (req.body.password == undefined) {
-        res.send({ code: 301, message: "Please send password in body" })
+        res.send({ code: 500, message: "Please send password in body" })
     }
     await User.findOne({username: req.body.username}, async function(err, user){
         if (user) {
@@ -62,11 +83,12 @@ app.post("/authenticate", async (req, res) => {
                     let newAuthToken = crypto.randomBytes(64).toString('hex')
                     addUpdateAuthToken(req.body.username, newAuthToken)
                     res.send({
+                        code: 200,
                         token: newAuthToken
                     })
                 } else {
                     console.log("authentication failed.")
-                    res.send({ code: 301, message: "Not Authorized" })
+                    res.send({ code: 500, message: "Not Authorized" })
                 }
             } catch (error) {
                 console.log(error)
@@ -75,31 +97,21 @@ app.post("/authenticate", async (req, res) => {
     })
 })
 
-app.post('/register', async (req, res) => {
-    try {
-        req.body.password = bcrypt.hashSync(req.body.password, 10)
-        var user = new User(req.body)
-        var result = await user.save()
-        res.send(result)
-    } catch (error) {
-        res.status(500).send(error)
-    }
-})
-
+// Middleware
 app.use(function(req, res, next){
     console.log("Secure resource " + Date.now())
 
-    if (req.body.token == undefined) {
+    if (req.query.token == undefined) {
         res.send({
-            code: 301,
+            code: 500,
             message: "Token not detected"
         })
         return
     }
-    Token.findOne({token: req.body.token}, async function(err, token){
+    Token.findOne({token: req.query.token}, async function(err, token){
         if (!token){
             res.send({
-                code: 301,
+                code: 500,
                 message: "Token not detected"
             })
         } else {
@@ -110,10 +122,10 @@ app.use(function(req, res, next){
 
 app.post('/authenticateUsingToken', async (req, res) => {
     try {
-        await Token.findOne({token: req.body.token}, async function(err, token){
+        await Token.findOne({token: req.query.token}, async function(err, token){
             if (!token){
                 res.send({
-                    code: 301,
+                    code: 500,
                     message: "Token not valid, please login."
                 })
             } else {
@@ -126,8 +138,8 @@ app.post('/authenticateUsingToken', async (req, res) => {
                         }
                     })
                 } else {
-                    let username = await Token.findOne({ token: req.body.token }).username
-                    await Token.deleteOne({ token: req.body.token })
+                    let username = await Token.findOne({ token: req.query.token }).username
+                    await Token.deleteOne({ token: req.query.token })
                     let newAuthToken = crypto.randomBytes(64).toString('hex')
                     addUpdateAuthToken(username, newAuthToken)
                     res.send({
@@ -144,8 +156,6 @@ app.post('/authenticateUsingToken', async (req, res) => {
         console.log(error)
     }
 })
-
-var GreenScore = require('./greenscore');
 
 async function getUserIDFromToken(token){
     var username = null;
@@ -175,38 +185,174 @@ actionScores = {
 }
 
 app.post('/api/greenscore', async function (req, res) {
-    var token = req.body.token
+    var token = req.query.token
     var user_id = await getUserIDFromToken(token)
     var score = 0
+    var totgreenscore = 0
 
     if (actionScores[req.body.action] == undefined){
-        res.send({ code: 301, message: "action not found" })
+        res.send({ code: 500, message: "action not found" })
         return
     }
-
-    var greenscore = new GreenScore ({
-        user_id: user_id,
-        action: req.body.action,
-        score: actionScores[req.body.action],
-        additionalData: {}
-    });
-
-    var result = await greenscore.save();
-    User.findOne({_id: user_id}, async function(err, user){   
+    await User.findOne({_id: user_id}, async function(err, user){   
         if(user){
-            user.total_greenscore += greenscore.score
+            user.total_greenscore += actionScores[req.body.action]
             if (user.total_greenscore > 10000)
                 user.total_greenscore = 10000;
             else if (user.total_greenscore < 0)
                 user.total_greenscore = 0;
+
+            totgreenscore = user.total_greenscore
             
             console.log(user.username + '\'s current greenscore:', user.total_greenscore)
             await user.save();
         }else{
             console.log(err);
         }
+    })
+
+    var greenscore = new GreenScore ({
+        user_id: user_id,
+        action: req.body.action,
+        score: totgreenscore,
+        additionalData: {}
     });
-    res.send(result);
+
+    var result = await greenscore.save();
+
+    res.send({
+        code: 200,
+        data: result
+    });
+})
+
+app.get('/api/greenscore', async function(req, res) {
+    var token = req.query.token
+    var user_id = await getUserIDFromToken(token)
+    var result = []
+
+    const agg = GreenScore.aggregate([{ $match: { user_id: user_id}}])
+    for await (const gs of agg) {
+        result.push(gs)
+    }
+    res.send({
+        code: 200,
+        data: result
+    })
+})  
+
+app.post('/api/friends', async function(req, res) {
+    var token = req.query.token
+    var friend = req.body.friend_username
+    var friend_id = null
+    var user_id = await getUserIDFromToken(token)
+    var result = null
+    try {
+        await User.findOne({username: friend}, async function (err, user){
+            friend_id = user._id
+        })
+        await User.findOne({_id: user_id}, async function(err, user){
+            if (!friend_id || user_id.toString() == friend_id.toString()){
+                res.send({ code: 500, message: "Friend error" })
+                return
+            }
+            user.friends.addToSet(friend_id)
+            await user.save()
+            res.send({
+                code: 200,
+                message: "Friend added"
+            })
+        })
+    } catch (error) {
+        console.error(error)
+    }
+})
+
+app.get('/api/friends', async function (req, res) {
+    var token = req.query.token
+    var user_id = await getUserIDFromToken(token)
+    var friends = null
+    var result = []
+    try {
+        await User.findOne({'_id': user_id}, function(err, user) {
+            if (user) {
+                friends = user.friends;
+            }
+        })
+        await User.find({
+            '_id': { $in: friends}
+        }, function(err, users){
+            users.forEach(function (item, index) {
+                let clean_user = {"username": item.username, "greenscore": item.total_greenscore}
+                result.push(clean_user) 
+            })
+        })
+    } catch (error) {
+        console.error(error)
+    }
+
+    res.send({
+        code: 200,
+        data: {
+            friends: result
+        }
+    })
+
+})
+
+app.delete('/api/friends', async function (req, res) {
+    var token = req.query.token
+    var friend = req.body.friend_username
+    var user_id = await getUserIDFromToken(token)
+    var friend_id = null
+    try {
+        await User.findOne({'username': friend}, function(err, user) {
+            if (user) {
+                friend_id = user._id
+            }
+        })
+        await User.findOne({'_id': user_id}, function(err, user) {
+            if (user) {
+                var index = user.friends.indexOf(friend_id)
+                if (index != -1) {
+                    user.friends.splice(index, 1)
+                    user.save()
+                }
+            }
+            res.send({
+                code: 200,
+                message: "Friend deleted"
+            })
+        })
+    } catch (error) {
+        console.error(error)
+    }
+})
+
+app.get('/api/leaderboard', async function (req, res) {
+    var top_users = []
+    try {
+        User.find({}).sort({total_greenscore: 'desc'}).limit(10).exec(function(err, docs){
+            docs.forEach(function(result, index){
+                // console.log(result)
+                top_users.push({
+                    username: result.username,
+                    email: result.email,
+                    friends: result.friends,
+                    total_greenscore: result.total_greenscore
+                })
+            })
+            res.send({
+                code: 200,
+                data: {
+                    top_users: top_users
+                }
+            })
+        })
+    } catch (error) {
+        console.error(error)
+    }
+    
 })
 
 app.listen(3000, () => {
