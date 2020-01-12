@@ -377,7 +377,7 @@ app.post('/api/greenscoreAggregation', async function (req, res) {
         res.send({
             code: 200,
             data: {
-                aggregated_score: result
+                result: result
             }
         })
     } catch (error) {
@@ -391,6 +391,40 @@ app.post('/api/greenscoreAggregation', async function (req, res) {
     }
 })
 
+app.get('/api/greenscoreByDay', async function(req, res) {
+    var token = req.query.token
+    var user_id = await getUserIDFromToken(token)
+    var fromTime = new Date(req.body.fromTime)
+    var toTime = new Date(req.body.toTime)
+
+    console.log(fromTime)
+    console.log(toTime)
+    var result = []
+
+    try {
+        const agg = GreenScore.aggregate([{ $match: { user_id: user_id}}])
+        for await (const gs of agg) {
+            if (gs.createdAt >= fromTime && gs.createdAt <= toTime) {
+                result.push(gs)
+            }
+        }
+        console.log(result)
+        res.send({
+            code: 200,
+            data: {
+                result: result
+            }
+        })
+    } catch (error) {
+        console.error(error)
+        res.send({
+            code: 500,
+            data: {
+                description: error
+            }
+        })
+    }
+})
 
 app.listen(3000, () => {
     console.log('Server port 3000 opened')
