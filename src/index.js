@@ -65,7 +65,6 @@ app.post('/register', async (req, res) => {
     } catch (error) {
         res.status(500).send(error)
     }
-
 })
 
 app.post("/authenticate", async (req, res) => {
@@ -190,6 +189,7 @@ app.post('/api/greenscore', async function (req, res) {
     var score = 0
     var totgreenscore = 0
 
+    console.log(req.body.action)
     if (actionScores[req.body.action] == undefined){
         res.send({ code: 500, message: "action not found" })
         return
@@ -214,7 +214,8 @@ app.post('/api/greenscore', async function (req, res) {
     var greenscore = new GreenScore ({
         user_id: user_id,
         action: req.body.action,
-        score: totgreenscore,
+        score: actionScores[req.body.action],
+        current_score: totgreenscore,
         additionalData: {}
     });
 
