@@ -355,6 +355,42 @@ app.get('/api/leaderboard', async function (req, res) {
     
 })
 
+app.post('/api/greenscoreAggregation', async function (req, res) {
+    var token = req.query.token
+    var user_id = await getUserIDFromToken(token)
+    var fromTime = new Date(req.body.fromTime)
+    var toTime = new Date(req.body.toTime)
+
+    console.log(fromTime)
+    console.log(toTime)
+    var result = 0
+
+    try {
+        const agg = GreenScore.aggregate([{ $match: { user_id: user_id}}])
+        for await (const gs of agg) {
+            if (gs.createdAt >= fromTime && gs.createdAt <= toTime) {
+                result += gs.score
+            }
+        }
+        console.log(result)
+        res.send({
+            code: 200,
+            data: {
+                aggregated_score: result
+            }
+        })
+    } catch (error) {
+        console.error(error)
+        res.send({
+            code: 500,
+            data: {
+                description: error
+            }
+        })
+    }
+})
+
+
 app.listen(3000, () => {
     console.log('Server port 3000 opened')
 })
