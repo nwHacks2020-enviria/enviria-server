@@ -31,6 +31,7 @@ var greenscoreSchema = new Schema({
     },
     action: String,
     score: Number,
+    current_score: Number,
     createdAt: { type: Date, default: Date.now },
     additionalData: {type: Map, of: String}
 });
